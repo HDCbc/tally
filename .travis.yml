@@ -1,0 +1,24 @@
+language: node_js
+node_js:
+  - "node" # latest stable Node.js release
+  - "6"    # latest 6.x release
+
+before_install:
+  - travis_retry npm install
+
+script:
+  - npm test
+
+notifications:
+  email:
+    - jonathan.zacharuk@ascentech.ca
+
+addons:
+  code_climate:
+    repo_token: f39962511613fa1c8a2ede1e6556f651ac34acf529193a26e042c2468a380c9e
+
+after_success:
+  - npm install -g codeclimate-test-reporter
+  - codeclimate-test-reporter < ./coverage/lcov.info
+  - npm install -g codacy-coverage
+  - codacy-coverage < ./coverage/lcov.info
