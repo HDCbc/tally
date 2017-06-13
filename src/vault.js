@@ -13,6 +13,7 @@ const db = require('./database');
 module.exports = (function vault() {
   function sanitizeAggregate(row = {}) {
     const clean = {};
+
     clean.count = Number.isInteger(row.count) ? row.count : null;
     clean.numerator = Number.isInteger(row.numerator) ? row.numerator : null;
     clean.denominator = Number.isInteger(row.denominator) ? row.denominator : null;
@@ -20,7 +21,7 @@ module.exports = (function vault() {
     return clean;
   }
   /**
-   * This function will perform a query against the Vault by running the api.performAggregateQuery
+   * This function will perform a query against the Vault by running the api.aggregate()
    * database function and returning an aggregate numerator/denominator or count.
    *
    * The database function should ensure that only aggregate results are returned. However, since it
@@ -47,10 +48,10 @@ module.exports = (function vault() {
    *
    * @returns {void}
    */
-  function performAggregateQuery(query, callback) {
+  function aggregate(client, query, callback) {
     logger.debug('vault.performAggregateQuery()', query);
 
-    const dbQuery = 'SELECT * FROM api.perform_aggregate_query(p_indicator:=$1, p_clinic:=$2, p_provider:=$3, p_effective_date:=$4);';
+    const dbQuery = 'SELECT * FROM api.aggregate(p_indicator:=$1, p_clinic:=$2, p_provider:=$3, p_effective_date:=$4);';
 
     const dbParams = [
       query.indicator,
@@ -59,9 +60,16 @@ module.exports = (function vault() {
       query.effectiveDate,
     ];
 
-    db.runQuery(dbQuery, dbParams, 'All', (error, row) => {
+    db.runQuery(client, dbQuery, dbParams, 'All', (dbErr, dbRow) => {
+      // Note that api.aggregate returns zero rows if it fails.
+      // If a database exception was thrown then use that error.
+      // If no row then there is an unspecified error.
+      const error = dbErr || (dbRow.length === 1 ? undefined : 'Database error. See log.');
+
       // Sanitize the return rows to ensure that only aggregate data is returned.
-      const results = sanitizeAggregate(row);
+      const results = sanitizeAggregate(dbRow);
+
+      logger.debug('results', { dbQuery, dbParams, error, results });
 
       // Note that we are "hiding" the error and instead of returning it as the
       // first parameter of the callback, we are including it in the results
@@ -87,22 +95,31 @@ module.exports = (function vault() {
    *
    * @returns {void}
    */
-  function performUpdate(change, callback) {
-    logger.debug('vault.performUpdate()', change);
+  function change(client, changeObject, callback) {
+    logger.debug('vault.performUpdate()');
 
-    const dbQuery = 'SELECT * FROM api.perform_update(p_change_id:=$1, p_statement:=$2);';
+    const dbQuery = 'SELECT * FROM api.change(p_change_id:=$1, p_statement:=$2, p_signature:=$3);';
 
     const dbParams = [
-      change.version,
-      change.statement,
+      changeObject.version,
+      changeObject.statement,
+      changeObject.signature,
     ];
 
-    // FIXME: We need to ensure that we cannot return sensitive data in error messages.
-    db.runQuery(dbQuery, dbParams, 'All', callback);
+    db.runQuery(client, dbQuery, dbParams, 'Single', (dbErr, dbRes) => {
+      // Note that api.change returns false if it fails.
+      // If a database exception was thrown then use that error.
+      // If the result is false then there is an unspecified error.
+      const error = dbErr || (dbRes ? undefined : 'Database error. See log.');
+
+      logger.debug('vault.performUpdate results', { dbQuery, dbParams, dbErr, dbRes });
+
+      callback(error, dbRes);
+    });
   }
 
   /**
-   * Retrieves the current version of the Vault by calling the api.get_version function within the
+   * Retrieves the current version of the Vault by calling the api.version() function within the
    * database.
    *
    * @param {Function} callback - A callback to run on completion.
@@ -111,19 +128,19 @@ module.exports = (function vault() {
    *
    * @returns {void}
    */
-  function retrieveVersion(callback) {
-    logger.debug('vault.retrieveVersion()');
+  function version(client, callback) {
+    logger.debug('vault.version()');
 
-    const dbQuery = 'select * from api.retrieve_version()';
+    const dbQuery = 'SELECT * FROM api.version()';
     const dbParams = [];
 
-    db.runQuery(dbQuery, dbParams, 'Single', callback);
+    db.runQuery(client, dbQuery, dbParams, 'Single', callback);
   }
 
   return {
     sanitizeAggregate,
-    performAggregateQuery,
-    performUpdate,
-    retrieveVersion,
+    aggregate,
+    change,
+    version,
   };
 }());

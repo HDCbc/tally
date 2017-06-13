@@ -1,7 +1,6 @@
 const fs = require('fs');
 const request = require('request');
 const logger = require('winston');
-const url = require('url');
 
 const config = require('../config/central-config');
 
@@ -13,50 +12,45 @@ const config = require('../config/central-config');
  * @module central
  */
 module.exports = (function central() {
-  const myQueries = [
-    { id: 1, indicator: 'diabetic_prevalence', clinic: '123', provider: 50000, effectiveDate: '2016-01-01' },
-    { id: 2, indicator: 'copd_prevalence', clinic: '123', provider: 50000, effectiveDate: '2016-01-01' },
-    { id: 3, indicator: 'chf_prevalence', clinic: '123', provider: 50000, effectiveDate: '2016-01-01' },
-    { id: 4, indicator: 'diabetic_prevalence', clinic: '123', provider: 50001, effectiveDate: '2016-01-01' },
-    { id: 5, indicator: 'copd_prevalence', clinic: '123', provider: 50001, effectiveDate: '2016-01-01' },
-    { id: 6, indicator: 'chf_prevalence', clinic: '123', provider: 50001, effectiveDate: '2016-01-01' },
-    { id: 7, indicator: 'diabetic_prevalence', clinic: '123', provider: 50000, effectiveDate: '2015-01-01' },
-    { id: 8, indicator: 'copd_prevalence', clinic: '123', provider: 50000, effectiveDate: '2015-01-01-01' },
-    { id: 9, indicator: 'chf_prevalence', clinic: '123', provider: 50000, effectiveDate: '2015-01-01' },
-    { id: 10, indicator: 'diabetic_prevalence', clinic: '123', provider: 50001, effectiveDate: '2015-01-01' },
-    { id: 11, indicator: 'copd_prevalence', clinic: '123', provider: 50001, effectiveDate: '2015-01-01' },
-    { id: 12, indicator: 'chf_prevalence', clinic: '123', provider: 50001, effectiveDate: '2015-01-01' },
-  ];
-
-  const myResults = [
-
-  ];
-
-  const NO_UPDATES_FOUND = 'No Updated Found';
+  const NO_UPDATES_FOUND = 'No Updates Found';
   const NO_QUERIES_FOUND = 'No Queries Found';
-  /**
-   * Request a new batch of updates from the HDC Central server.
-   */
-  function requestUpdates(version, callback) {
-    logger.debug('central.requestUpdates()', version);
 
+  function post(urla, json, callback) {
     // FIXME: Mutual Authentication
     const options = {
       method: 'POST',
-      url: config.baseUrl + '/request_updates',
+      url: config.baseUrl + '/' + urla,
       cert: fs.readFileSync(config.certFile, { encoding: 'utf-8' }),
       key: fs.readFileSync(config.keyFile, { encoding: 'utf-8' }),
       ca: [fs.readFileSync(config.caFile, { encoding: 'utf-8' })],
       // ca: fs.readFileSync(config.caFile),
-      json: {
-        version,
-      },
+      json,
     };
 
-    request.post(options, (err, message, response) => {
+    request.post(options, (err, response, body) => {
+      return callback(err, body);
+    });
+  }
+
+  /**
+   * Request a new batch of updates from the HDC Central server.
+   */
+  function requestUpdates(version, callback) {
+    logger.debug('central.requestUpdates()', { version });
+
+    post('updates', { version }, (err, results) => {
+      if (err) {
+        return callback(err);
+      }
+
+      logger.debug('Updates received', results.length);
+
+      if (!results || results.length === 0) {
+        return callback(NO_UPDATES_FOUND);
+      }
+
       // FIXME: Validate the content / structure of the response.
-      return callback(err, response);
-      // FIXME: Deal with callback(NO_UPDATES_FOUND);
+      return callback(null, results);
     });
   }
 
@@ -66,28 +60,38 @@ module.exports = (function central() {
   function requestQueries(callback) {
     logger.debug('central.requestQueries()');
 
-    const required =
-      myQueries
-      .filter(q => !myResults.find(r => r.query.id === q.id))
-      .slice(0, 3);
+    post('queries', {}, (err, results) => {
+      if (err) {
+        return callback(err);
+      }
 
-    if (required.length === 0) {
-      return callback(NO_QUERIES_FOUND);
-    }
+      logger.debug('Queries received', results.length);
 
-    return callback(null, required);
+      if (!results || results.length === 0) {
+        return callback(NO_QUERIES_FOUND);
+      }
+
+      // FIXME: Validate the content / structure of the response.
+      return callback(null, results);
+      // FIXME: Deal with callback(NO_UPDATES_FOUND);
+    });
   }
 
   /**
    * Sends the result of queries back to the central server.
    */
   function sendResults(results, callback) {
-    logger.debug('central.sendResults()', results);
+    logger.debug('central.sendResults()');
 
-    // Append the new results to our overall list of results
-    myResults.push(...results);
+    post('results', results, (postErr, postResults) => {
+      if (postErr) {
+        return callback(postErr);
+      }
 
-    callback(null, null);
+      logger.debug('Results received', postResults);
+
+      return callback(null, results);
+    });
   }
 
   return {

@@ -1,23 +1,9 @@
 const logger = require('winston');
-const pg = require('pg');
-
-const config = require('../config/vault-config');
 
 /**
  * @module database
  */
 module.exports = (function databaseModule() {
-  // Initialize the pool of connections that will be used to connect to the database.
-  const pool = new pg.Pool(config.connection);
-
-  /**
-   * If a client is idle in the pool and receives an error (for example when Postgres restarts),
-   * the pool will catch the error and let you handle it here.
-   */
-  pool.on('error', (err, client) => {
-    logger.error('database.onPoolError', err, client);
-  });
-
   /**
    * Parse the rows retrieved from the database.
    */
@@ -52,32 +38,16 @@ module.exports = (function databaseModule() {
   /**
    * Run a query against the database.
    */
-  function runQuery(query, params, type, callback) {
+  function runQuery(client, query, params, type, callback) {
     logger.debug('database.runQuery()');
 
-    // Acquire a client from the pool.
-    pool.connect((poolErr, client, poolDone) => {
-      // If we could not acquire a client then callback an error.
-      if (poolErr) {
-        return callback(poolErr);
+    // Run the query against the client.
+    client.query(query, params, (queryErr, queryResult) => {
+      // If we could not run the query then callback an error.
+      if (queryErr) {
+        return callback(queryErr);
       }
-
-      // Run the query against the client.
-      client.query(query, params, (queryErr, queryResult) => {
-        // Release the client back to the pool
-        poolDone();
-
-        // If we could not run the query then callback an error.
-        if (queryErr) {
-          return callback(queryErr);
-        }
-
-        const rows = queryResult.rows;
-
-        parseRows(rows, type, callback);
-        return undefined;
-      });
-      return undefined;
+      return parseRows(queryResult.rows, type, callback);
     });
   }
 

@@ -5,10 +5,12 @@ require('./logger-setup');
 // Import npm modules.
 const async = require('async');
 const logger = require('winston');
+const pg = require('pg');
 
 // Import local modules.
 const central = require('./central');
 const config = require('../config/app-config');
+const dbConfig = require('../config/vault-config');
 const vault = require('./vault');
 
 /**
@@ -30,10 +32,10 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function updatePeform(updates, callback) {
-    logger.debug('app.updatePeform()', updates);
+  function updatePerform(client, updates, callback) {
+    logger.debug('app.updatePeform()', updates.length);
 
-    async.mapSeries(updates, vault.performUpdate, (err) => {
+    async.mapSeries(updates, async.apply(vault.change, client), (err) => {
       callback(err);
     });
   }
@@ -51,15 +53,15 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function updateBatch(callback) {
+  function updateBatch(client, callback) {
     logger.debug('app.updateBatch()');
 
     async.waterfall([
-      vault.retrieveVersion,
+      async.apply(vault.version, client),
       // The below command will callback a specific error if there are no updates which will
       // cause this function to instantly callback without trying to perform updates.
       central.requestUpdates,
-      updatePeform,
+      async.apply(updatePerform, client),
     ], callback);
   }
 
@@ -71,12 +73,12 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function updateAll(callback) {
+  function updateAll(client, callback) {
     logger.debug('app.updateAll()');
 
-    async.forever(updateBatch, (err) => {
+    async.forever(async.apply(updateBatch, client), (err) => {
       // Hide the 'fake' update complete error.
-      if (err === central.UPDATE_COMPLETE) {
+      if (err === central.NO_UPDATES_FOUND) {
         return callback(null);
       }
 
@@ -96,12 +98,12 @@ module.exports = (function app() {
    * @param {int} callback.results - An array containing the results of the query.
    * @returns {void}
    */
-  function queryPerform(queryList, callback) {
+  function queryPerform(client, queryList, callback) {
     logger.debug('app.queryPerform()', queryList);
 
     const limit = config.maxParallelQueries;
 
-    async.mapLimit(queryList, limit, vault.performAggregateQuery, (err, results) => {
+    async.mapLimit(queryList, limit, async.apply(vault.aggregate, client), (err, results) => {
       callback(err, results);
     });
   }
@@ -119,12 +121,12 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function queryBatch(callback) {
+  function queryBatch(client, callback) {
     logger.debug('app.queryBatch()');
 
     async.waterfall([
       central.requestQueries,
-      queryPerform,
+      async.apply(queryPerform, client),
       central.sendResults,
     ], callback);
   }
@@ -137,10 +139,10 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function queryAll(callback) {
+  function queryAll(client, callback) {
     logger.debug('app.queryAll()');
 
-    async.forever(queryBatch, (err) => {
+    async.forever(async.apply(queryBatch, client), (err) => {
       // Hide the 'fake' queries complete error.
       if (err === central.NO_QUERIES_FOUND) {
         return callback(null);
@@ -150,19 +152,43 @@ module.exports = (function app() {
     });
   }
 
+  function init(dbConfig2, callback) {
+    logger.debug('app.init');
+    const pool = new pg.Pool(dbConfig2.connection);
+
+    pool.on('error', function (err, client) {
+      // if an error is encountered by a client while it sits idle in the pool
+      // the pool itself will emit an error event with both the error and
+      // the client which emitted the original error
+      // this is a rare occurrence but can happen if there is a network partition
+      // between your application and the database, the database restarts, etc.
+      // and so you might want to handle it and at least log it out
+      console.error('idle client error', err.message, err.stack);
+    });
+
+    callback(null, pool);
+  }
+
   function run() {
     logger.debug('app.run()');
 
-    async.series([
-      updateAll,
-      queryAll,
-    ], (err) => {
-      if (err) {
-        logger.error('The application encountered a fatal error', err);
+    init(dbConfig, (dbErr, dbClient) => {
+      if (dbErr) {
+        logger.error('Unable to connect to database', dbErr);
         process.exit(1);
       }
 
-      process.exit(0);
+      async.series([
+        async.apply(updateAll, dbClient),
+        async.apply(queryAll, dbClient),
+      ], (err) => {
+        if (err) {
+          logger.error('The application encountered a fatal error.', err);
+          process.exit(1);
+        }
+
+        process.exit(0);
+      });
     });
   }
 
