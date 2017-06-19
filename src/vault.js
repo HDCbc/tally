@@ -101,7 +101,7 @@ module.exports = (function vault() {
     const dbQuery = 'SELECT * FROM api.change(p_change_id:=$1, p_statement:=$2, p_signature:=$3);';
 
     const dbParams = [
-      changeObject.version,
+      changeObject.change_id,
       changeObject.statement,
       changeObject.signature,
     ];
