@@ -1,8 +1,5 @@
 const fs = require('fs');
 const request = require('request');
-const logger = require('winston');
-
-const config = require('../config/central-config');
 
 /**
  * This module will provide the interface with the Central Server.
@@ -15,19 +12,40 @@ module.exports = (function central() {
   const NO_UPDATES_FOUND = 'No Updates Found';
   const NO_QUERIES_FOUND = 'No Queries Found';
 
+  let config;
+  let logger;
+
+  function init(configParam, loggerParam, callback) {
+    config = configParam;
+    logger = loggerParam;
+    logger.debug('central.init');
+
+    // TODO - simple online check
+    callback(null);
+  }
+
   function post(urla, json, callback) {
     // FIXME: Mutual Authentication
+    // TODO: REMOVE THE BELOW FOR PRODUCTION!
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
     const options = {
       method: 'POST',
-      url: config.baseUrl + '/' + urla,
+      url: `${config.baseUrl}/${urla}`,
       cert: fs.readFileSync(config.certFile, { encoding: 'utf-8' }),
       key: fs.readFileSync(config.keyFile, { encoding: 'utf-8' }),
       ca: [fs.readFileSync(config.caFile, { encoding: 'utf-8' })],
-      // ca: fs.readFileSync(config.caFile),
       json,
     };
 
     request.post(options, (err, response, body) => {
+      if (err) {
+        return callback(err);
+      }
+      if (response.statusCode !== 200) {
+        return callback(body);
+      }
+
       return callback(err, body);
     });
   }
@@ -95,6 +113,7 @@ module.exports = (function central() {
   }
 
   return {
+    init,
     requestUpdates,
     requestQueries,
     sendResults,

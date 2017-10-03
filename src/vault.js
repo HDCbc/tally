@@ -137,10 +137,30 @@ module.exports = (function vault() {
     db.runQuery(client, dbQuery, dbParams, 'Single', callback);
   }
 
+  /**
+   * Retrieves the current version of the Vault by calling the api.version() function within the
+   * database.
+   *
+   * @param {Function} callback - A callback to run on completion.
+   * @param {Object} callback.error - If an error occured this will include details on the error.
+   * @param {int} callback.version - The current version of the Universal Schema.
+   *
+   * @returns {void}
+   */
+  function prepare(client, callback) {
+    logger.debug('vault.prepare()');
+
+    const dbQuery = 'SELECT * FROM api.prepare()';
+    const dbParams = [];
+
+    db.runQuery(client, dbQuery, dbParams, 'Single', callback);
+  }
+
   return {
     sanitizeAggregate,
     aggregate,
     change,
+    prepare,
     version,
   };
 }());

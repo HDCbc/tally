@@ -1,16 +1,5 @@
-// Setup the logger based on configuration.
-// This should be loaded before any of the modules that rely on winston.
-require('./logger-setup');
-
 // Import npm modules.
 const async = require('async');
-const logger = require('winston');
-const pg = require('pg');
-
-// Import local modules.
-const central = require('./central');
-const config = require('../config/app-config');
-const dbConfig = require('../config/vault-config');
 const vault = require('./vault');
 
 /**
@@ -20,6 +9,19 @@ const vault = require('./vault');
  * @module app
  */
 module.exports = (function app() {
+  let logger;
+  let central;
+  let db;
+
+  function init(loggerParam, centralParam, dbParam, callback) {
+    logger = loggerParam;
+    central = centralParam;
+    db = dbParam;
+
+    logger.debug('app.init');
+    callback(null);
+  }
+
   /**
    * This function will perform the specified updates against the Universal Schema.
    * <br/><br/>
@@ -152,47 +154,26 @@ module.exports = (function app() {
     });
   }
 
-  function init(dbConfig2, callback) {
-    logger.debug('app.init');
-    const pool = new pg.Pool(dbConfig2.connection);
-
-    pool.on('error', function (err, client) {
-      // if an error is encountered by a client while it sits idle in the pool
-      // the pool itself will emit an error event with both the error and
-      // the client which emitted the original error
-      // this is a rare occurrence but can happen if there is a network partition
-      // between your application and the database, the database restarts, etc.
-      // and so you might want to handle it and at least log it out
-      console.error('idle client error', err.message, err.stack);
-    });
-
-    callback(null, pool);
-  }
 
   function run() {
     logger.debug('app.run()');
 
-    init(dbConfig, (dbErr, dbClient) => {
-      if (dbErr) {
-        logger.error('Unable to connect to database', dbErr);
+    async.series([
+      async.apply(updateAll, db),
+      async.apply(central.prepare, db),
+      async.apply(queryAll, db),
+    ], (err) => {
+      if (err) {
+        logger.error('The application encountered a fatal error.', err);
         process.exit(1);
       }
 
-      async.series([
-        async.apply(updateAll, dbClient),
-        async.apply(queryAll, dbClient),
-      ], (err) => {
-        if (err) {
-          logger.error('The application encountered a fatal error.', err);
-          process.exit(1);
-        }
-
-        process.exit(0);
-      });
+      process.exit(0);
     });
   }
 
   return {
+    init,
     run,
   };
 }());

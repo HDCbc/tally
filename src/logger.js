@@ -2,20 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const winston = require('winston');
 
-const config = require('../config/logger-config');
-
 /**
- * @module logger
+ * Initializes the logger (console & file).
  */
-module.exports = (function loggerModule() {
-  // Create the log directory if it does not already exist
-  // Because Winston is too lazy to do it. Thanks Winston.
+const init = (config) => {
   const logDir = path.dirname(config.file.filename);
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir);
   }
 
-  winston.configure({
+  const logger = new (winston.Logger)({
     transports: [
       new winston.transports.Console(config.console),
       new winston.transports.File(config.file),
@@ -23,5 +19,9 @@ module.exports = (function loggerModule() {
     exitOnError: false,
   });
 
-  winston.debug('Logger configured');
-}());
+  return logger;
+};
+
+module.exports = {
+  init,
+};

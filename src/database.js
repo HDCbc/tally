@@ -1,9 +1,35 @@
-const logger = require('winston');
+const pg = require('pg');
 
 /**
  * @module database
  */
 module.exports = (function databaseModule() {
+  let pool;
+  let logger;
+
+  /**
+   * Initialize the database connection.
+   */
+  function init(config, loggerParam, callback) {
+    logger = loggerParam;
+    logger.debug('database.init', config);
+
+    pool = new pg.Pool(config);
+
+    pool.on('error', function (err, client) {
+      // if an error is encountered by a client while it sits idle in the pool
+      // the pool itself will emit an error event with both the error and
+      // the client which emitted the original error
+      // this is a rare occurrence but can happen if there is a network partition
+      // between your application and the database, the database restarts, etc.
+      // and so you might want to handle it and at least log it out
+      console.error('idle client error', err.message, err.stack);
+    });
+
+    // TODO - simple connection check
+    callback(null, pool);
+  }
+
   /**
    * Parse the rows retrieved from the database.
    */
@@ -52,6 +78,7 @@ module.exports = (function databaseModule() {
   }
 
   return {
+    init,
     parseRows,
     runQuery,
   };
