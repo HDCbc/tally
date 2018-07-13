@@ -82,7 +82,7 @@ module.exports = (function central() {
         return callback(err);
       }
 
-      logger.info('Queries received', { numQueries: results.length });
+      // logger.info('Queries received', { numQueries: results.length });
       logger.debug('Queries received', { results });
 
       if (!results || results.length === 0) {
