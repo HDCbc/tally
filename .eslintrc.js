@@ -5,13 +5,13 @@ module.exports = {
     'import',
   ],
   rules: {
-    'require-jsdoc': [1, {
-      require: {
-        ClassDeclaration: true,
-        MethodDefinition: true,
-        FunctionDeclaration: true,
-      },
-    }],
-    'valid-jsdoc': 1,
+    // 'require-jsdoc': [1, {
+    //   require: {
+    //     ClassDeclaration: true,
+    //     MethodDefinition: true,
+    //     FunctionDeclaration: true,
+    //   },
+    // }],
+    // 'valid-jsdoc': 1,
   },
 };
