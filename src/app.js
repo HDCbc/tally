@@ -81,6 +81,7 @@ module.exports = (function app() {
     async.forever(async.apply(updateBatch, client), (err) => {
       // Hide the 'fake' update complete error.
       if (err === central.NO_UPDATES_FOUND) {
+        logger.debug('app.updateAll complete');
         return callback(null);
       }
 
