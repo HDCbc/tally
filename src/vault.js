@@ -90,7 +90,7 @@ module.exports = (function vault() {
       // first parameter of the callback, we are including it in the results
       // object. This is because we are running a bunch of queries at the same
       // time and if an error is returned then they will all instantly stop.
-      callback(null, { query, error, results });
+      callback(null, results);
     });
   }
 
@@ -116,7 +116,7 @@ module.exports = (function vault() {
     const dbQuery = 'SELECT * FROM api.change(p_change_id:=$1, p_statement:=$2, p_signature:=$3);';
 
     const dbParams = [
-      changeObject.change_id,
+      changeObject.version,
       changeObject.statement,
       changeObject.signature,
     ];
