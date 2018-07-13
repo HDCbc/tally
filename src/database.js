@@ -65,10 +65,11 @@ module.exports = (function databaseModule() {
    * Run a query against the database.
    */
   function runQuery(client, query, params, type, callback) {
-    logger.debug('database.runQuery()');
+    logger.debug('database.runQuery()', { query, params });
 
     // Run the query against the client.
     client.query(query, params, (queryErr, queryResult) => {
+      logger.debug('database.runQuery Results', { queryResult });
       // If we could not run the query then callback an error.
       if (queryErr) {
         return callback(queryErr);
