@@ -24,16 +24,12 @@ const init = () => {
   // 3. Defaults are very lowest priority.
   nconf.defaults({
     logger: {
-      console: {
-        level: 'info',
-      },
-      file: {
-        filename: 'logs/log',
-      },
-    },
-    morgan: {
-      format: 'tiny',
-      options: {},
+      level: 'info',
+      filename: './logs/tally.log',
+      maxsize: 1048576, // 1 MB
+      maxFiles: 10,
+      zippedArchive: true,
+      tailable: true,
     },
   });
 

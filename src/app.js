@@ -1,5 +1,6 @@
 // Import npm modules.
 const async = require('async');
+const logger = require('winston');
 const vault = require('./vault');
 
 /**
@@ -9,16 +10,14 @@ const vault = require('./vault');
  * @module app
  */
 module.exports = (function app() {
-  let logger;
   let central;
   let db;
 
-  function init(loggerParam, centralParam, dbParam, callback) {
-    logger = loggerParam;
+  function init(centralParam, dbParam, callback) {
     central = centralParam;
     db = dbParam;
 
-    logger.debug('app.init');
+    logger.info('app.init');
     callback(null);
   }
 
@@ -35,7 +34,7 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updatePerform(client, updates, callback) {
-    logger.debug('app.updatePeform()', updates.length);
+    logger.info('app.updatePeform()', { numUpdates: updates.length });
 
     async.mapSeries(updates, async.apply(vault.change, client), (err) => {
       callback(err);
@@ -56,7 +55,7 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updateBatch(client, callback) {
-    logger.debug('app.updateBatch()');
+    logger.info('app.updateBatch()');
 
     async.waterfall([
       async.apply(vault.version, client),
@@ -76,12 +75,12 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updateAll(client, callback) {
-    logger.debug('app.updateAll()');
+    logger.info('app.updateAll()');
 
     async.forever(async.apply(updateBatch, client), (err) => {
       // Hide the 'fake' update complete error.
       if (err === central.NO_UPDATES_FOUND) {
-        logger.debug('app.updateAll complete');
+        logger.info('app.updateAll complete');
         return callback(null);
       }
 
@@ -102,9 +101,9 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryPerform(client, queryList, callback) {
-    logger.debug('app.queryPerform()', queryList);
-
-    const limit = config.maxParallelQueries;
+    logger.info('app.queryPerform()', { queryList });
+    // console.log('THIS IS THE QUERY LIST', queryList);
+    const limit = 10; // TODO config.maxParallelQueries;
 
     async.mapLimit(queryList, limit, async.apply(vault.aggregate, client), (err, results) => {
       callback(err, results);
@@ -125,7 +124,7 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryBatch(client, callback) {
-    logger.debug('app.queryBatch()');
+    logger.info('app.queryBatch()');
 
     async.waterfall([
       central.requestQueries,
@@ -143,7 +142,7 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryAll(client, callback) {
-    logger.debug('app.queryAll()');
+    logger.info('app.queryAll()');
 
     async.forever(async.apply(queryBatch, client), (err) => {
       // Hide the 'fake' queries complete error.
@@ -157,7 +156,7 @@ module.exports = (function app() {
 
 
   function run() {
-    logger.debug('app.run()');
+    logger.info('app.run()');
 
     async.series([
       async.apply(updateAll, db),

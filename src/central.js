@@ -1,11 +1,11 @@
 const fs = require('fs');
+const logger = require('winston');
 const request = require('request');
 
 /**
  * This module will provide the interface with the Central Server.
  *
  * @param {Object} db - An instance of a database connection.
- * @param {Object} logger - An instance of a logger.
  * @module central
  */
 module.exports = (function central() {
@@ -13,12 +13,10 @@ module.exports = (function central() {
   const NO_QUERIES_FOUND = 'No Queries Found';
 
   let config;
-  let logger;
 
-  function init(configParam, loggerParam, callback) {
+  function init(configParam, callback) {
     config = configParam;
-    logger = loggerParam;
-    logger.debug('central.init');
+    logger.info('central.init');
 
     // TODO - simple online check
     callback(null);
@@ -54,14 +52,15 @@ module.exports = (function central() {
    * Request a new batch of updates from the HDC Central server.
    */
   function requestUpdates(version, callback) {
-    logger.debug('central.requestUpdates()', { version });
+    logger.info('central.requestUpdates()', { version });
 
     post('updates', { version }, (err, results) => {
       if (err) {
         return callback(err);
       }
 
-      logger.debug('Updates received', results.length);
+      logger.info('Updates received', { numUpdates: results.length });
+      logger.debug('Updates', { results });
 
       if (!results || results.length === 0) {
         return callback(NO_UPDATES_FOUND);
@@ -83,7 +82,8 @@ module.exports = (function central() {
         return callback(err);
       }
 
-      logger.debug('Queries received', results.length);
+      logger.info('Queries received', { numQueries: results.length });
+      logger.debug('Queries received', { results });
 
       if (!results || results.length === 0) {
         return callback(NO_QUERIES_FOUND);
@@ -99,14 +99,14 @@ module.exports = (function central() {
    * Sends the result of queries back to the central server.
    */
   function sendResults(results, callback) {
-    logger.debug('central.sendResults()');
+    logger.info('central.sendResults()', { results });
 
     post('results', results, (postErr, postResults) => {
       if (postErr) {
         return callback(postErr);
       }
 
-      logger.debug('Results received', postResults);
+      logger.info('Results received', { postResults });
 
       return callback(null, results);
     });

@@ -1,18 +1,17 @@
 const pg = require('pg');
+const logger = require('winston');
 
 /**
  * @module database
  */
 module.exports = (function databaseModule() {
   let pool;
-  let logger;
 
   /**
    * Initialize the database connection.
    */
-  function init(config, loggerParam, callback) {
-    logger = loggerParam;
-    logger.debug('database.init', config);
+  function init(config, callback) {
+    logger.info('database.init');
 
     pool = new pg.Pool(config);
 
@@ -69,7 +68,7 @@ module.exports = (function databaseModule() {
 
     // Run the query against the client.
     client.query(query, params, (queryErr, queryResult) => {
-      logger.debug('database.runQuery Results', { queryResult });
+      logger.debug('database.runQuery Results', { rows: queryResult && queryResult.rows });
       // If we could not run the query then callback an error.
       if (queryErr) {
         return callback(queryErr);
