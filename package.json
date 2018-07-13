@@ -7,7 +7,9 @@
     "doc": "jsdoc -c jsdoc.json",
     "lint": "eslint **/*.js",
     "start": "node index.js",
-    "test": "istanbul cover --report lcov --include-all-sources node_modules/mocha/bin/_mocha -- ./test/*.spec.js"
+    "test": "istanbul cover --report lcov --include-all-sources node_modules/mocha/bin/_mocha -- ./test/*.spec.js",
+    "build": "pkg . --out-path ./build/",
+    "clean": "rm -rf ./build"    
   },
   "author": "Jonathan Zacharuk <jonathan.zacharuk@ascentech.ca>",
   "license": "GPL-3.0",
@@ -18,6 +20,7 @@
     "eslint-plugin-import": "^2.2.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
+    "pkg": "^4.3.1",
     "sinon": "^1.17.7"
   },
   "dependencies": {
@@ -31,5 +34,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/hdcbc/tally.git"
-  }
+  },
+  "bin": "./index.js"  
 }

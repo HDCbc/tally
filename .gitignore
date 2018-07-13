@@ -12,3 +12,9 @@ node_modules
 
 # Ignore npm debug log that is generated when npm command fails
 npm-debug.log*
+
+# Ignore build bolder used by build/clean commands.
+build
+
+# Ignore editor settings folder
+.vscode
