@@ -23,10 +23,6 @@ module.exports = (function central() {
   }
 
   function post(urla, json, callback) {
-    // FIXME: Mutual Authentication
-    // TODO: REMOVE THE BELOW FOR PRODUCTION!
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
     const options = {
       method: 'POST',
       url: `${config.baseUrl}/${urla}`,
