@@ -161,7 +161,7 @@ module.exports = (function app() {
 
     async.series([
       async.apply(updateAll, db),
-      async.apply(central.prepare, db),
+      async.apply(vault.prepare, db),
       async.apply(queryAll, db),
     ], (err) => {
       if (err) {
