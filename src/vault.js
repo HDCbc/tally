@@ -57,17 +57,32 @@ module.exports = (function vault() {
       query.indicator,
       query.clinic,
       query.provider,
-      query.effectiveDate,
+      query.effective_date,
     ];
 
+    const startTime = Date.now();
+
     db.runQuery(client, dbQuery, dbParams, 'All', (dbErr, dbRow) => {
+      const endTime = Date.now();
+
       // Note that api.aggregate returns zero rows if it fails.
       // If a database exception was thrown then use that error.
       // If no row then there is an unspecified error.
-      const error = dbErr || (dbRow.length === 1 ? undefined : 'Database error. See log.');
+      const error = dbErr || (dbRow.length === 1 ? null : 'Database error. See log.');
 
-      // Sanitize the return rows to ensure that only aggregate data is returned.
-      const results = sanitizeAggregate(dbRow);
+      const results = {
+        query_id: query.id,
+        reported_version: -42,
+        execution_start_time: new Date(startTime),
+        execution_end_time: new Date(endTime),
+        error,
+      };
+
+      if (dbRow.length === 1) {
+        results.denominator = Number.isInteger(dbRow[0].denominator) ? dbRow[0].denominator : null;
+        results.numerator = Number.isInteger(dbRow[0].numerator) ? dbRow[0].numerator : null;
+        results.count = Number.isInteger(dbRow[0].count) ? dbRow[0].count : null;
+      }
 
       logger.debug('results', { dbQuery, dbParams, error, results });
 
