@@ -49,7 +49,8 @@ module.exports = (function vault() {
    * @returns {void}
    */
   function aggregate(client, query, callback) {
-    logger.info('vault.performAggregateQuery()', query);
+    logger.info('vault.performAggregateQuery()');
+    logger.debug('vault.performAggregateQuery()', { query });
 
     const dbQuery = 'SELECT * FROM api.aggregate(p_indicator:=$1, p_clinic:=$2, p_provider:=$3, p_effective_date:=$4);';
 
@@ -72,7 +73,7 @@ module.exports = (function vault() {
 
       const results = {
         query_id: query.id,
-        reported_version: -42,
+        // reported_version: -42,
         execution_start_time: new Date(startTime),
         execution_end_time: new Date(endTime),
         error,
@@ -84,7 +85,7 @@ module.exports = (function vault() {
         results.count = Number.isInteger(dbRow[0].count) ? dbRow[0].count : null;
       }
 
-      logger.info('vault.performAggregateQuery()', { dbQuery, dbParams, error, results });
+      // logger.info('vault.performAggregateQuery()', { dbQuery, dbParams, error, results });
 
       // Note that we are "hiding" the error and instead of returning it as the
       // first parameter of the callback, we are including it in the results
@@ -127,7 +128,7 @@ module.exports = (function vault() {
       // If the result is false then there is an unspecified error.
       const error = dbErr || (dbRes ? undefined : 'Database error. See log.');
 
-      logger.info('vault.performUpdate results', { dbQuery, dbParams, dbErr, dbRes });
+      logger.debug('vault.performUpdate results', { dbQuery, dbParams, dbErr, dbRes });
 
       callback(error, dbRes);
     });
@@ -168,7 +169,10 @@ module.exports = (function vault() {
     const dbQuery = 'SELECT * FROM api.prepare()';
     const dbParams = [];
 
-    db.runQuery(client, dbQuery, dbParams, 'Single', callback);
+    db.runQuery(client, dbQuery, dbParams, 'Single', (err, res) => {
+      logger.info('vault.prepare completed');
+      callback(err, res);
+    });
   }
 
   return {

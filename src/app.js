@@ -100,12 +100,10 @@ module.exports = (function app() {
    * @param {int} callback.results - An array containing the results of the query.
    * @returns {void}
    */
-  function queryPerform(client, queryList, callback) {
-    logger.info('app.queryPerform()', { queryList });
-    // console.log('THIS IS THE QUERY LIST', queryList);
-    const limit = 10; // TODO config.maxParallelQueries;
+  function queryPerform(client, queryList, maxParallelQueries, callback) {
+    logger.info('app.queryPerform()', { numQueries: queryList.length, maxParallelQueries });
 
-    async.mapLimit(queryList, limit, async.apply(vault.aggregate, client), (err, results) => {
+    async.mapLimit(queryList, maxParallelQueries, async.apply(vault.aggregate, client), (err, results) => {
       callback(err, results);
     });
   }
@@ -123,14 +121,18 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function queryBatch(client, callback) {
+  function queryBatch(client, maxParallelQueries, callback) {
     logger.info('app.queryBatch()');
 
-    async.waterfall([
-      central.requestQueries,
-      async.apply(queryPerform, client),
-      central.sendResults,
-    ], callback);
+    async.autoInject({
+      version: cb => vault.version(client, cb),
+      queries: cb => central.requestQueries(cb),
+      results: (queries, cb) => queryPerform(client, queries, maxParallelQueries, cb),
+      mappedResults: (version, results, cb) => {
+        cb(null, results.map(o => Object.assign(o, { reported_version: version })));
+      },
+      sent: (mappedResults, cb) => central.sendResults(mappedResults, cb),
+    }, callback);
   }
 
   /**
@@ -141,10 +143,10 @@ module.exports = (function app() {
    * @param {Object} callback.error - If an error occured this will include details on the error.
    * @returns {void}
    */
-  function queryAll(client, callback) {
+  function queryAll(client, maxParallelQueries, callback) {
     logger.info('app.queryAll()');
 
-    async.forever(async.apply(queryBatch, client), (err) => {
+    async.forever(async.apply(queryBatch, client, maxParallelQueries), (err) => {
       // Hide the 'fake' queries complete error.
       if (err === central.NO_QUERIES_FOUND) {
         return callback(null);
@@ -155,14 +157,21 @@ module.exports = (function app() {
   }
 
 
-  function run() {
-    logger.info('app.run()');
+  function run(appParams) {
+    const { maxParallelQueries } = appParams;
+    logger.info('app.run()', { maxParallelQueries });
 
-    async.series([
-      async.apply(updateAll, db),
-      async.apply(vault.prepare, db),
-      async.apply(queryAll, db),
-    ], (err) => {
+    async.autoInject({
+      updated: cb => updateAll(db, cb),
+      initialQueries: (updated, cb) => central.requestQueries(cb),
+      prepared: (initialQueries, cb) => vault.prepare(db, cb),
+      queried: (prepared, cb) => queryAll(db, maxParallelQueries, cb),
+    }, (err) => {
+      // If the initial query returned no queries then just exist without preparing.
+      if (err === central.NO_QUERIES_FOUND) {
+        logger.info('No queries found. Exit before prepare');
+        process.exit(0);
+      }
       if (err) {
         logger.error('The application encountered a fatal error.', err);
         process.exit(1);

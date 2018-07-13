@@ -23,9 +23,11 @@ module.exports = (function central() {
   }
 
   function post(urla, json, callback) {
+    const url = `${config.baseUrl}/${urla}`;
+    logger.info('central.post', { url });
     const options = {
       method: 'POST',
-      url: `${config.baseUrl}/${urla}`,
+      url,
       cert: fs.readFileSync(config.certFile, { encoding: 'utf-8' }),
       key: fs.readFileSync(config.keyFile, { encoding: 'utf-8' }),
       ca: [fs.readFileSync(config.caFile, { encoding: 'utf-8' })],
@@ -34,9 +36,11 @@ module.exports = (function central() {
 
     request.post(options, (err, response, body) => {
       if (err) {
+        logger.error('central.post error', { err });
         return callback(err);
       }
       if (response.statusCode !== 200) {
+        logger.error('central.post bad response code', { statusCode: response.statusCode });
         return callback(body);
       }
 
@@ -71,7 +75,7 @@ module.exports = (function central() {
    * Request a new batch of queries from the HDC Central server.
    */
   function requestQueries(callback) {
-    logger.debug('central.requestQueries()');
+    logger.info('central.requestQueries()');
 
     post('queries', {}, (err, results) => {
       if (err) {
@@ -95,7 +99,8 @@ module.exports = (function central() {
    * Sends the result of queries back to the central server.
    */
   function sendResults(results, callback) {
-    logger.info('central.sendResults()', { results });
+    logger.info('central.sendResults()', { numResults: results.length });
+    logger.debug('central.sendResults()', { results });
 
     post('results', results, (postErr, postResults) => {
       if (postErr) {

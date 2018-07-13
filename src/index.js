@@ -35,7 +35,7 @@ database.init(cfg.get('db'), (dbErr, pool) => {
         logger.error('Unable to initialize app', appErr);
         process.exit(1);
       }
-      app.run((runErr) => {
+      app.run(cfg.get('app'), (runErr) => {
         if (runErr) {
           logger.error('Unable to run app', runErr);
           process.exit(1);
