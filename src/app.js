@@ -34,10 +34,17 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updatePerform(client, updates, callback) {
-    logger.info('app.updatePeform()', { numUpdates: updates.length });
+    const start = Date.now();
+    logger.info('App UpdatePeform Started', { numUpdates: updates.length });
 
     async.mapSeries(updates, async.apply(vault.change, client), (err) => {
-      callback(err);
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err) {
+        logger.error('App UpdatePeform Failure', err);
+        return callback(err);
+      }
+      logger.info('App UpdatePeform Success', { elapsedSec });
+      return callback(null);
     });
   }
 
@@ -55,7 +62,8 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updateBatch(client, callback) {
-    logger.info('app.updateBatch()');
+    const start = Date.now();
+    logger.info('App UpdateBatch Started');
 
     async.waterfall([
       async.apply(vault.version, client),
@@ -63,7 +71,19 @@ module.exports = (function app() {
       // cause this function to instantly callback without trying to perform updates.
       central.requestUpdates,
       async.apply(updatePerform, client),
-    ], callback);
+    ], (err, res) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err === central.NO_UPDATES_FOUND) {
+        logger.info('App UpdateBatch Success (No Updates)', { elapsedSec });
+        // Pass the fake error to the callback.
+        return callback(err);
+      } else if (err) {
+        logger.error('App UpdateBatch Failure', err);
+        return callback(err);
+      }
+      logger.info('App UpdateBatch Success', { elapsedSec });
+      return callback(null, res);
+    });
   }
 
   /**
@@ -75,15 +95,21 @@ module.exports = (function app() {
    * @returns {void}
    */
   function updateAll(client, callback) {
-    logger.info('app.updateAll()');
+    const start = Date.now();
+    logger.info('App UpdateAll Started');
 
     async.forever(async.apply(updateBatch, client), (err) => {
+      const elapsedSec = (Date.now() - start) / 1000;
       // Hide the 'fake' update complete error.
       if (err === central.NO_UPDATES_FOUND) {
-        logger.info('app.updateAll complete');
+        logger.info('App UpdateAll Success (No Updates)', { elapsedSec });
         return callback(null);
+      } else if (err) {
+        logger.error('App UpdateAll Failure', err);
+        return callback(err);
       }
 
+      logger.info('App UpdateAll Success (Continue)', { elapsedSec });
       return callback(err);
     });
   }
@@ -101,10 +127,18 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryPerform(client, queryList, maxParallelQueries, callback) {
-    logger.info('app.queryPerform()', { numQueries: queryList.length, maxParallelQueries });
+    const start = Date.now();
+    logger.info('App QueryPerform Started', { numQueries: queryList.length, maxParallelQueries });
+    logger.debug('App QueryPerform Queries', { queryList });
 
     async.mapLimit(queryList, maxParallelQueries, async.apply(vault.aggregate, client), (err, results) => {
-      callback(err, results);
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err) {
+        logger.error('App QueryPerform Failure', err);
+        return callback(err);
+      }
+      logger.info('App QueryPerform Success', { elapsedSec });
+      return callback(null, results);
     });
   }
 
@@ -122,17 +156,26 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryBatch(client, maxParallelQueries, callback) {
-    logger.info('app.queryBatch()');
+    const start = Date.now();
+    logger.info('App QueryBatch Started', { maxParallelQueries });
 
-    async.autoInject({
+    async.auto({
       version: cb => vault.version(client, cb),
       queries: cb => central.requestQueries(cb),
-      results: (queries, cb) => queryPerform(client, queries, maxParallelQueries, cb),
-      mappedResults: (version, results, cb) => {
-        cb(null, results.map(o => Object.assign(o, { reported_version: version })));
-      },
-      sent: (mappedResults, cb) => central.sendResults(mappedResults, cb),
-    }, callback);
+      results: ['queries', (res, cb) => queryPerform(client, res.queries, maxParallelQueries, cb)],
+      mappedResults: ['version', 'results', (res, cb) => {
+        cb(null, res.results.map(o => Object.assign(o, { reported_version: res.version })));
+      }],
+      sent: ['mappedResults', (res, cb) => central.sendResults(res.mappedResults, cb)],
+    }, (err) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err) {
+        logger.error('App QueryBatch Failure', err);
+        return callback(err);
+      }
+      logger.info('App QueryBatch Success', { elapsedSec });
+      return callback(null);
+    });
   }
 
   /**
@@ -144,15 +187,23 @@ module.exports = (function app() {
    * @returns {void}
    */
   function queryAll(client, maxParallelQueries, callback) {
-    logger.info('app.queryAll()');
+    const start = Date.now();
+    logger.info('App QueryAll Started', { maxParallelQueries });
 
     async.forever(async.apply(queryBatch, client, maxParallelQueries), (err) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+
       // Hide the 'fake' queries complete error.
       if (err === central.NO_QUERIES_FOUND) {
+        logger.info('App QueryAll Success (No Queries)', { elapsedSec });
+        return callback(null);
+      } else if (err) {
+        logger.error('App QueryAll Failure', err);
         return callback(null);
       }
 
-      return callback(err);
+      logger.info('App QueryAll Success', { elapsedSec });
+      return callback(null);
     });
   }
 
@@ -161,11 +212,11 @@ module.exports = (function app() {
     const { maxParallelQueries } = appParams;
     logger.info('app.run()', { maxParallelQueries });
 
-    async.autoInject({
+    async.auto({
       updated: cb => updateAll(db, cb),
-      initialQueries: (updated, cb) => central.requestQueries(cb),
-      prepared: (initialQueries, cb) => vault.prepare(db, cb),
-      queried: (prepared, cb) => queryAll(db, maxParallelQueries, cb),
+      initialQueries: ['updated', (res, cb) => central.requestQueries(cb)],
+      prepared: ['initialQueries', (res, cb) => vault.prepare(db, cb)],
+      queried: ['prepared', (res, cb) => queryAll(db, maxParallelQueries, cb)],
     }, (err) => {
       // If the initial query returned no queries then just exist without preparing.
       if (err === central.NO_QUERIES_FOUND) {

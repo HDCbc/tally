@@ -84,6 +84,7 @@ module.exports = ((config) => {
       createConsoleTransport(),
       createFileTransport(),
     ],
+    exitOnError: false,
   });
 
   winston.log = expandErrors(winston);

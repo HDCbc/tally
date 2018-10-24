@@ -24,7 +24,6 @@ module.exports = (function central() {
 
   function post(urla, json, callback) {
     const url = `${config.baseUrl}/${urla}`;
-    logger.info('central.post', { url });
     const options = {
       method: 'POST',
       url,
@@ -34,7 +33,7 @@ module.exports = (function central() {
       json,
     };
 
-    request.post(options, (err, response, body) => {
+    request(options, (err, response, body) => {
       if (err) {
         logger.error('central.post error', { err });
         return callback(err);
@@ -52,21 +51,24 @@ module.exports = (function central() {
    * Request a new batch of updates from the HDC Central server.
    */
   function requestUpdates(version, callback) {
-    logger.info('central.requestUpdates()', { version });
+    const start = Date.now();
+    logger.info('Central RequestUpdates Started', { version });
 
     post('updates', { version }, (err, results) => {
+      const elapsedSec = (Date.now() - start) / 1000;
       if (err) {
+        logger.error('Central RequestUpdates Failure', err);
         return callback(err);
       }
 
-      logger.info('Updates received', { numUpdates: results.length });
-      logger.debug('Updates', { results });
+      logger.debug('Central RequestUpdates Results', { results });
 
       if (!results || results.length === 0) {
+        logger.info('Central RequestUpdates Success (No Updates)', { elapsedSec, numUpdates: results.length });
         return callback(NO_UPDATES_FOUND);
       }
 
-      // FIXME: Validate the content / structure of the response.
+      logger.info('Central RequestUpdates Success', { elapsedSec, numUpdates: results.length });
       return callback(null, results);
     });
   }
@@ -75,23 +77,26 @@ module.exports = (function central() {
    * Request a new batch of queries from the HDC Central server.
    */
   function requestQueries(callback) {
-    logger.info('central.requestQueries()');
+    const start = Date.now();
+    logger.info('Central RequestQueries Started');
 
     post('queries', {}, (err, results) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+
       if (err) {
+        logger.error('Central RequestQueries Failure', err);
         return callback(err);
       }
 
-      // logger.info('Queries received', { numQueries: results.length });
-      logger.debug('Queries received', { results });
+      logger.debug('Central RequestQueries Results', { results });
 
       if (!results || results.length === 0) {
+        logger.info('Central RequestQueries Success (No Queries)', { elapsedSec, numQueries: results.length });
         return callback(NO_QUERIES_FOUND);
       }
 
-      // FIXME: Validate the content / structure of the response.
+      logger.info('Central RequestQueries Success', { elapsedSec, numQueries: results.length });
       return callback(null, results);
-      // FIXME: Deal with callback(NO_UPDATES_FOUND);
     });
   }
 
@@ -99,17 +104,17 @@ module.exports = (function central() {
    * Sends the result of queries back to the central server.
    */
   function sendResults(results, callback) {
-    logger.info('central.sendResults()', { numResults: results.length });
-    logger.debug('central.sendResults()', { results });
+    const start = Date.now();
+    logger.info('Central Send Results Started', { results });
 
     post('results', results, (postErr, postResults) => {
+      const elapsedSec = (Date.now() - start) / 1000;
       if (postErr) {
+        logger.error('Central Send Results Failure', postErr);
         return callback(postErr);
       }
-
-      logger.info('Results received', { postResults });
-
-      return callback(null, results);
+      logger.info('Central Send Results Success', { elapsedSec });
+      return callback(null, postResults);
     });
   }
 

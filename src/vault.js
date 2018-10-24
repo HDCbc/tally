@@ -49,8 +49,9 @@ module.exports = (function vault() {
    * @returns {void}
    */
   function aggregate(client, query, callback) {
-    logger.info('vault.performAggregateQuery()');
-    logger.debug('vault.performAggregateQuery()', { query });
+    const startTime = Date.now();
+    logger.info('Vault Aggregate Started');
+    logger.debug('Vault Aggregate Query', { query });
 
     const dbQuery = 'SELECT * FROM api.aggregate(p_indicator:=$1, p_clinic:=$2, p_provider:=$3, p_effective_date:=$4);';
 
@@ -61,10 +62,9 @@ module.exports = (function vault() {
       query.effective_date,
     ];
 
-    const startTime = Date.now();
-
     db.runQuery(client, dbQuery, dbParams, 'All', (dbErr, dbRow) => {
       const endTime = Date.now();
+      const elapsedSec = (endTime - startTime) / 1000;
 
       // Note that api.aggregate returns zero rows if it fails.
       // If a database exception was thrown then use that error.
@@ -73,7 +73,7 @@ module.exports = (function vault() {
 
       const results = {
         query_id: query.id,
-        // reported_version: -42,
+        // reported_version gets populated in App.queryBatch
         execution_start_time: new Date(startTime),
         execution_end_time: new Date(endTime),
         error,
@@ -85,7 +85,13 @@ module.exports = (function vault() {
         results.count = Number.isInteger(dbRow[0].count) ? dbRow[0].count : null;
       }
 
-      // logger.info('vault.performAggregateQuery()', { dbQuery, dbParams, error, results });
+      if (error) {
+        logger.error('Vault Aggregate Failed', error);
+        // Note that we do not callback here, as per below comment.
+      } else {
+        logger.debug('Vault Aggregate Results', { results });
+        logger.info('Vault Aggregate Success', { elapsedSec });
+      }
 
       // Note that we are "hiding" the error and instead of returning it as the
       // first parameter of the callback, we are including it in the results
@@ -112,7 +118,8 @@ module.exports = (function vault() {
    * @returns {void}
    */
   function change(client, changeObject, callback) {
-    logger.info('vault.performUpdate()', { version: changeObject.version });
+    const start = Date.now();
+    logger.info('Vault Change Started', { toVersion: changeObject.version });
 
     const dbQuery = 'SELECT * FROM api.change(p_change_id:=$1, p_statement:=$2, p_signature:=$3);';
 
@@ -123,14 +130,20 @@ module.exports = (function vault() {
     ];
 
     db.runQuery(client, dbQuery, dbParams, 'Single', (dbErr, dbRes) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+
       // Note that api.change returns false if it fails.
       // If a database exception was thrown then use that error.
       // If the result is false then there is an unspecified error.
       const error = dbErr || (dbRes ? undefined : 'Database error. See log.');
 
-      logger.debug('vault.performUpdate results', { dbQuery, dbParams, dbErr, dbRes });
+      if (error) {
+        logger.error('Vault Change Failure', error);
+        return callback(error);
+      }
 
-      callback(error, dbRes);
+      logger.info('Vault Change Success', { elapsedSec });
+      callback(null, dbRes);
     });
   }
 
@@ -145,12 +158,21 @@ module.exports = (function vault() {
    * @returns {void}
    */
   function version(client, callback) {
-    logger.info('vault.version()');
+    const start = Date.now();
+    logger.info('Vault Version Started');
 
     const dbQuery = 'SELECT * FROM api.version()';
     const dbParams = [];
 
-    db.runQuery(client, dbQuery, dbParams, 'Single', callback);
+    db.runQuery(client, dbQuery, dbParams, 'Single', (err, res) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err) {
+        logger.error('Vault Version Failure', err);
+        return callback(err);
+      }
+      logger.info('Vault Version Success', { elapsedSec, version: res });
+      return callback(null, res);
+    });
   }
 
   /**
@@ -164,14 +186,20 @@ module.exports = (function vault() {
    * @returns {void}
    */
   function prepare(client, callback) {
-    logger.info('vault.prepare()');
+    const start = Date.now();
+    logger.info('Vault Prepare Started');
 
     const dbQuery = 'SELECT * FROM api.prepare()';
     const dbParams = [];
 
-    db.runQuery(client, dbQuery, dbParams, 'Single', (err, res) => {
-      logger.info('vault.prepare completed');
-      callback(err, res);
+    db.runQuery(client, dbQuery, dbParams, 'Single', (err) => {
+      const elapsedSec = (Date.now() - start) / 1000;
+      if (err) {
+        logger.error('Vault Prepare Failure', err);
+        return callback(err);
+      }
+      logger.info('Vault Prepare Success', { elapsedSec });
+      return callback(null);
     });
   }
 

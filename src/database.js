@@ -64,16 +64,27 @@ module.exports = (function databaseModule() {
    * Run a query against the database.
    */
   function runQuery(client, query, params, type, callback) {
-    logger.debug('database.runQuery()', { query, params });
+    const start = Date.now();
+    logger.debug('Database RunQuery Started', { query, params, type });
 
     // Run the query against the client.
     client.query(query, params, (queryErr, queryResult) => {
-      logger.debug('database.runQuery Results', { rows: queryResult && queryResult.rows });
+      const elapsedSec = (Date.now() - start) / 1000;
+      // logger.debug('database.runQuery Results', { rows: queryResult && queryResult.rows });
       // If we could not run the query then callback an error.
       if (queryErr) {
+        logger.error('Database RunQuery Failure', queryErr);
         return callback(queryErr);
       }
-      return parseRows(queryResult.rows, type, callback);
+      logger.debug('Database RunQuery Results', { elapsedSec, rows: queryResult.rows });
+      return parseRows(queryResult.rows, type, (parseErr, parseResult) => {
+        if (parseErr) {
+          logger.error('Database RunQuery Failure', parseErr);
+          return callback(parseErr);
+        }
+        logger.debug('Database RunQuery Success', { elapsedSec, result: parseResult });
+        return callback(null, parseResult);
+      });
     });
   }
 
