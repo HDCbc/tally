@@ -33,6 +33,9 @@ module.exports = (function central() {
       json,
     };
 
+    // Allow self signed certs to be used.
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
     request(options, (err, response, body) => {
       if (err) {
         logger.error('central.post error', { err });
