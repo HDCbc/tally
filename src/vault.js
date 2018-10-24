@@ -82,7 +82,9 @@ module.exports = (function vault() {
       if (dbRow.length === 1) {
         results.denominator = Number.isInteger(dbRow[0].denominator) ? dbRow[0].denominator : null;
         results.numerator = Number.isInteger(dbRow[0].numerator) ? dbRow[0].numerator : null;
-        results.count = Number.isInteger(dbRow[0].count) ? dbRow[0].count : null;
+
+        // Note that the results from the database are in column "kount" to deal with SQL keywords.
+        results.count = Number.isInteger(dbRow[0].kount) ? dbRow[0].kount : null;
       }
 
       if (error) {
