@@ -11,7 +11,7 @@ const nconf = require('nconf');
 const init = () => {
   // Load the environment variables from project/.env first.
   // Note that this will not override pre-existing env variables.
-  dotenv.load();
+  dotenv.config();
 
   nconf.use('memory');
 
@@ -31,6 +31,7 @@ const init = () => {
       zippedArchive: true,
       tailable: true,
     },
+    timeout: 120000,
   });
 
   // If the following variables are not specified then an error will be thrown.

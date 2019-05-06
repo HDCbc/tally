@@ -51,7 +51,7 @@ module.exports = ((config) => {
                 winston.format.timestamp(),
                 //winston.format.prettyPrint(),
                 winston.format.printf((info) => {
-                        return `[${info.timestamp}]  ${info.level} \t [${info.elapsedSec}] \t ${info.message} \t\t [${info.meta}]`
+                        return `[${info.timestamp}]  ${info.level} \t [${info.elapsedSec}] || [] \t ${info.message} \t\t [${info.meta}]`
                 }),
         )
      })

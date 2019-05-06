@@ -31,7 +31,7 @@ module.exports = (function central() {
       key: fs.readFileSync(config.keyFile, { encoding: 'utf-8' }),
       ca: [fs.readFileSync(config.caFile, { encoding: 'utf-8' })],
       json,
-      timeout: [fs.readFileSync(config.timeout, { encoding: 'utf-8' })],
+      timeout: parseInt(config.timeout, 10),
     };
 
     request(options, (err, response, body) => {
