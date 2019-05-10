@@ -30,6 +30,7 @@ const init = () => {
       maxFiles: 10,
       zippedArchive: true,
       tailable: true,
+      timezone: 'America/Vancouver',
     },
     timeout: 120000,
   });

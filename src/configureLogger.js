@@ -1,8 +1,9 @@
 const _ = require('lodash');
+const moment = require('moment-timezone');
 // const fs = require('fs');
 // const moment = require('moment');
 // const path = require('path');
-// const printf = require('printf');
+const printf = require('printf');
 const winston = require('winston');
 
 // Extend a winston by making it expand errors when passed in as the
@@ -38,28 +39,40 @@ module.exports = ((config) => {
     maxFiles,
     tailable,
     zippedArchive,
+    timezone,
   } = config;
-  // eslint-disable-next-line no-console
-  console.log('Config', config);
 
   winston.configure({
     level,
-    filename,
-    maxsize,
-    maxFiles,
-    tailable,
-    zippedArchive,
     transports: [
       new winston.transports.Console({
         format: winston.format.combine(
           winston.format.colorize(),
-          winston.format.timestamp(),
-          winston.format.printf(info => `[${info.timestamp}]  ${info.level} \t [${info.elapsedSec}] || [] \t ${info.message} \t\t [${info.meta}]`),
+          winston.format.metadata(),
+          winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
+          winston.format.printf(info => printf('%s  %-15s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
         ),
       }),
     ],
     exitOnError: false,
   });
+
+  if (filename) {
+    winston.add(
+      new winston.transports.File({
+        filename,
+        maxsize,
+        maxFiles,
+        tailable,
+        zippedArchive,
+        format: winston.format.combine(
+          winston.format.metadata(),
+          winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
+          winston.format.printf(info => printf('%s  %-6s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
+        ),
+      }),
+    );
+  }
 
   winston.log = expandErrors(winston);
 });
