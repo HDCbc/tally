@@ -77,7 +77,8 @@ module.exports = (function app() {
         logger.info('App UpdateBatch Success (No Updates)', { elapsedSec });
         // Pass the fake error to the callback.
         return callback(err);
-      } else if (err) {
+      }
+      if (err) {
         logger.error('App UpdateBatch Failure', err);
         return callback(err);
       }
@@ -104,7 +105,8 @@ module.exports = (function app() {
       if (err === central.NO_UPDATES_FOUND) {
         logger.info('App UpdateAll Success (No Updates)', { elapsedSec });
         return callback(null);
-      } else if (err) {
+      }
+      if (err) {
         logger.error('App UpdateAll Failure', err);
         return callback(err);
       }
@@ -131,15 +133,20 @@ module.exports = (function app() {
     logger.info('App QueryPerform Started', { numQueries: queryList.length, maxParallelQueries });
     logger.debug('App QueryPerform Queries', { queryList });
 
-    async.mapLimit(queryList, maxParallelQueries, async.apply(vault.aggregate, client), (err, results) => {
-      const elapsedSec = (Date.now() - start) / 1000;
-      if (err) {
-        logger.error('App QueryPerform Failure', err);
-        return callback(err);
-      }
-      logger.info('App QueryPerform Success', { elapsedSec });
-      return callback(null, results);
-    });
+    async.mapLimit(
+      queryList,
+      maxParallelQueries,
+      async.apply(vault.aggregate, client),
+      (err, results) => {
+        const elapsedSec = (Date.now() - start) / 1000;
+        if (err) {
+          logger.error('App QueryPerform Failure', err);
+          return callback(err);
+        }
+        logger.info('App QueryPerform Success', { elapsedSec });
+        return callback(null, results);
+      },
+    );
   }
 
   /**
@@ -196,13 +203,11 @@ module.exports = (function app() {
       // Hide the 'fake' queries complete error.
       if (err === central.NO_QUERIES_FOUND) {
         logger.info('App QueryAll Success (No Queries)', { elapsedSec });
-        return callback(null);
       } else if (err) {
         logger.error('App QueryAll Failure', err);
-        return callback(null);
+      } else {
+        logger.info('App QueryAll Success', { elapsedSec });
       }
-
-      logger.info('App QueryAll Success', { elapsedSec });
       return callback(null);
     });
   }

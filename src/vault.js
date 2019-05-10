@@ -143,7 +143,7 @@ module.exports = (function vault() {
       }
 
       logger.info('Vault Change Success', { elapsedSec });
-      callback(null, dbRes);
+      return callback(null, dbRes);
     });
   }
 
