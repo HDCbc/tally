@@ -13,7 +13,8 @@ const cfg = config.init();
 
 configureLogger(cfg.get('logger'));
 
-// Dont get the logger until after it is configured.
+// Dont get the logger until after it is configured. Hence linting is disabled for the next line
+// eslint-disable-next-line import/order
 const logger = require('winston');
 
 // Initialize the database
