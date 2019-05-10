@@ -41,48 +41,20 @@ module.exports = ((config) => {
 
   console.log('Config', config);
 
-  const createFormatter = () => {
-    const formatter = (options) => {
-      const time = moment().format('YYYY-MM-DD HH:mm:ss');
-      const lvl = options.level.toUpperCase();
-      const message = options.message ? options.message : '';
-      const meta = options.meta && Object.keys(options.meta).length ? ` ${JSON.stringify(options.meta)}` : '';
-      return printf('%s %-5s %-30s %s', time, lvl, message, meta);
-    };
-    return formatter;
-  };
-
-  const createFileTransport = () => {
-    // TODO - what about recursive directories? // WHAT IF IT FAILS!!!!!!!
-
-    // Create the log directory if it does not already exist
-    // Because Winston is too lazy to do it. Thanks Winston.
-    if (!fs.existsSync(path.dirname(filename))) {
-      fs.mkdirSync(path.dirname(filename));
-    }
-
-    return new winston.transports.File({
-      formatter: createFormatter(),
-      filename,
-      maxsize,
-      maxFiles,
-      tailable,
-      zippedArchive,
-      json: false,
-    });
-  };
-
-  const createConsoleTransport = () => new (winston.transports.Console)({
-    colorize: true,
-    formatter: createFormatter(),
-  });
-
   winston.configure({
     level,
 
     transports: [
-      createConsoleTransport(),
-      createFileTransport(),
+      new winston.transports.Console({
+        format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.timestamp(),
+                //winston.format.prettyPrint(),
+                winston.format.printf((info) => {
+                        return `[${info.timestamp}]  ${info.level} \t [${info.elapsedSec}] || [] \t ${info.message} \t\t [${info.meta}]`
+                }),
+        )
+     })
     ],
     exitOnError: false,
   });

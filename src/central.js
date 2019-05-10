@@ -31,6 +31,7 @@ module.exports = (function central() {
       key: fs.readFileSync(config.keyFile, { encoding: 'utf-8' }),
       ca: [fs.readFileSync(config.caFile, { encoding: 'utf-8' })],
       json,
+      timeout: parseInt(config.timeout, 10),
     };
 
     // Allow self signed certs to be used.
