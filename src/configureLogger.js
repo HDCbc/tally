@@ -50,7 +50,7 @@ module.exports = ((config) => {
           winston.format.colorize(),
           winston.format.metadata(),
           winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
-          winston.format.printf(info => printf('%s  %-15s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
+          winston.format.printf((info) => printf('%s  %-15s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
         ),
       }),
     ],
@@ -68,7 +68,7 @@ module.exports = ((config) => {
         format: winston.format.combine(
           winston.format.metadata(),
           winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
-          winston.format.printf(info => printf('%s  %-6s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
+          winston.format.printf((info) => printf('%s  %-6s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
         ),
       }),
     );

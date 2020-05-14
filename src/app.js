@@ -167,11 +167,11 @@ module.exports = (function app() {
     logger.info('App QueryBatch Started', { maxParallelQueries });
 
     async.auto({
-      version: cb => vault.version(client, cb),
-      queries: cb => central.requestQueries(cb),
+      version: (cb) => vault.version(client, cb),
+      queries: (cb) => central.requestQueries(cb),
       results: ['queries', (res, cb) => queryPerform(client, res.queries, maxParallelQueries, cb)],
       mappedResults: ['version', 'results', (res, cb) => {
-        cb(null, res.results.map(o => Object.assign(o, { reported_version: res.version })));
+        cb(null, res.results.map((o) => Object.assign(o, { reported_version: res.version })));
       }],
       sent: ['mappedResults', (res, cb) => central.sendResults(res.mappedResults, cb)],
     }, (err) => {
@@ -218,7 +218,7 @@ module.exports = (function app() {
     logger.info('app.run()', { maxParallelQueries });
 
     async.auto({
-      updated: cb => updateAll(db, cb),
+      updated: (cb) => updateAll(db, cb),
       initialQueries: ['updated', (res, cb) => central.requestQueries(cb)],
       prepared: ['initialQueries', (res, cb) => vault.prepare(db, cb)],
       queried: ['prepared', (res, cb) => queryAll(db, maxParallelQueries, cb)],
