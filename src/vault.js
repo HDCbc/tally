@@ -69,7 +69,7 @@ module.exports = (function vault() {
       // Note that api.aggregate returns zero rows if it fails.
       // If a database exception was thrown then use that error.
       // If no row then there is an unspecified error.
-      const error = dbErr || (dbRow.length === 1 ? null : 'Database error. See log.');
+      const error = (dbErr && dbErr.message) || (dbRow && dbRow.length === 1 ? null : 'Database error. See log.');
 
       const results = {
         query_id: query.id,
@@ -79,7 +79,7 @@ module.exports = (function vault() {
         error,
       };
 
-      if (dbRow.length === 1) {
+      if (!error && dbRow && dbRow.length === 1) {
         results.denominator = Number.isInteger(dbRow[0].denominator) ? dbRow[0].denominator : null;
         results.numerator = Number.isInteger(dbRow[0].numerator) ? dbRow[0].numerator : null;
 
