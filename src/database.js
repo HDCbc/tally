@@ -1,17 +1,19 @@
 const pg = require('pg');
-const logger = require('winston');
+const winston = require('winston');
 
 /**
  * @module database
  */
 module.exports = (function databaseModule() {
+  let logger;
   let pool;
 
   /**
    * Initialize the database connection.
    */
   function init(config, callback) {
-    logger.info('database.init');
+    logger = winston.loggers.get('app');
+    logger.debug('database.init');
 
     pool = new pg.Pool(config);
 

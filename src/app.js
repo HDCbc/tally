@@ -1,6 +1,6 @@
 // Import npm modules.
 const async = require('async');
-const logger = require('winston');
+const winston = require('winston');
 const vault = require('./vault');
 
 /**
@@ -10,14 +10,17 @@ const vault = require('./vault');
  * @module app
  */
 module.exports = (function app() {
+  let logger;
   let central;
   let db;
 
   function init(centralParam, dbParam, callback) {
+    logger = winston.loggers.get('app');
     central = centralParam;
     db = dbParam;
+    vault.init();
 
-    logger.info('app.init');
+    logger.debug('app.init');
     callback(null);
   }
 

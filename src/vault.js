@@ -1,4 +1,4 @@
-const logger = require('winston');
+const winston = require('winston');
 
 const db = require('./database');
 
@@ -11,6 +11,13 @@ const db = require('./database');
  * @module vault
  */
 module.exports = (function vault() {
+  let logger;
+
+  function init() {
+    logger = winston.loggers.get('app');
+    logger.debug('vault.init');
+  }
+
   function sanitizeAggregate(row = {}) {
     const clean = {};
 
@@ -206,6 +213,7 @@ module.exports = (function vault() {
   }
 
   return {
+    init,
     sanitizeAggregate,
     aggregate,
     change,

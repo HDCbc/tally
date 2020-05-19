@@ -1,5 +1,5 @@
 const fs = require('fs');
-const logger = require('winston');
+const winston = require('winston');
 const request = require('request');
 
 /**
@@ -12,11 +12,13 @@ module.exports = (function central() {
   const NO_UPDATES_FOUND = 'No Updates Found';
   const NO_QUERIES_FOUND = 'No Queries Found';
 
+  let logger;
   let config;
 
   function init(configParam, callback) {
+    logger = winston.loggers.get('app');
     config = configParam;
-    logger.info('central.init');
+    logger.debug('central.init');
 
     // TODO - simple online check
     callback(null);

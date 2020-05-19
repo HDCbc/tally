@@ -1,6 +1,8 @@
 /**
  * Main initialization script that pulls the various components together.
  */
+const winston = require('winston');
+
 const config = require('./config.js');
 const configureLogger = require('./configureLogger');
 
@@ -12,34 +14,38 @@ const app = require('./app.js');
 const cfg = config.init();
 
 configureLogger(cfg.get('logger'));
+const logger = winston.loggers.get('app');
 
-// Dont get the logger until after it is configured. Hence linting is disabled for the next line
-// eslint-disable-next-line import/order
-const logger = require('winston');
+function exit(code) {
+  const appLogger = winston.loggers.get('app');
+  appLogger.log('info', `Exit Code ${code}`, code);
+  appLogger.on('finish', () => process.exit());
+  appLogger.end();
+}
 
 // Initialize the database
 database.init(cfg.get('db'), (dbErr, pool) => {
   if (dbErr) {
     logger.error('Unable to initialize database', dbErr);
-    process.exit(1);
+    exit(1);
     return;
   }
 
   central.init(cfg.get('central'), (centralErr) => {
     if (centralErr) {
       logger.error('Unable to initialize central', centralErr);
-      process.exit(1);
+      exit(1);
     }
 
     app.init(central, pool, (appErr) => {
       if (appErr) {
         logger.error('Unable to initialize app', appErr);
-        process.exit(1);
+        exit(1);
       }
       app.run(cfg.get('app'), (runErr) => {
         if (runErr) {
           logger.error('Unable to run app', runErr);
-          process.exit(1);
+          exit(1);
         }
       });
     });

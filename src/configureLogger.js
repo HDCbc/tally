@@ -1,27 +1,29 @@
 const _ = require('lodash');
 const moment = require('moment-timezone');
-// const fs = require('fs');
-// const moment = require('moment');
-// const path = require('path');
 const printf = require('printf');
 const winston = require('winston');
 
+const TIMESTAMP_FORMAT = 'YYYY-MM-DD HH:mm:ss z';
+
 // Extend a winston by making it expand errors when passed in as the
-// second argument (the first argument is the log level).
+// third argument (the first argument is the log level).
 function expandErrors(currLogger) {
   const originalLogFunc = currLogger.log;
-  // const newLogger = Object.assign({}, currLogger);
   function log() {
     // eslint-disable-next-line prefer-rest-params
     const args = Array.prototype.slice.call(arguments, 0);
-    // TODO This will only work if the 3rd argument (the first is the level) is an Error.
+
     if (args.length >= 3 && args[2] instanceof Error) {
       const allPropNames = Object.getOwnPropertyNames(args[2]);
       const expanded = {};
 
       _.each(allPropNames, (p) => {
         if (p !== 'stack') {
-          expanded[p] = args[2][p];
+          if (p === 'message') {
+            expanded.msg = args[2][p];
+          } else {
+            expanded[p] = args[2][p];
+          }
         }
       });
       args[2] = expanded;
@@ -42,24 +44,20 @@ module.exports = ((config) => {
     timezone,
   } = config;
 
-  winston.configure({
+  winston.loggers.add('app', {
     level,
     transports: [
       new winston.transports.Console({
+        handleExceptions: true,
         format: winston.format.combine(
           winston.format.colorize(),
           winston.format.metadata(),
-          winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
-          winston.format.printf((info) => printf('%s  %-15s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
+          winston.format.timestamp({ format: () => moment.tz(timezone).format(TIMESTAMP_FORMAT) }),
+          winston.format.printf((info) => printf('%s %-18s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')),
         ),
       }),
-    ],
-    exitOnError: false,
-  });
-
-  if (filename) {
-    winston.add(
       new winston.transports.File({
+        handleExceptions: true,
         filename,
         maxsize,
         maxFiles,
@@ -67,12 +65,14 @@ module.exports = ((config) => {
         zippedArchive,
         format: winston.format.combine(
           winston.format.metadata(),
-          winston.format.timestamp({ format: () => moment.tz(timezone).format('YYYY-MM-DD hh:mm:ss z') }),
-          winston.format.printf((info) => printf('%s  %-6s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')), // (info.meta && Object.keys(info.meta).length ? ` ${JSON.stringify(info.meta)}` : ''))),
+          winston.format.timestamp({ format: () => moment.tz(timezone).format(TIMESTAMP_FORMAT) }),
+          winston.format.printf((info) => printf('%s  %-6s %-30s %s', info.timestamp, info.level, info.message, info.metadata && Object.keys(info.metadata).length ? JSON.stringify(info.metadata) : '')),
         ),
       }),
-    );
-  }
+    ],
+  });
 
-  winston.log = expandErrors(winston);
+  const logger = winston.loggers.get('app');
+  logger.on('error', (e) => console.log('Logger Error', e)); // eslint-disable-line no-console
+  logger.log = expandErrors(logger);
 });
