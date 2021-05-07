@@ -22,7 +22,7 @@
   "dependencies": {
     "async": "^3.2.0",
     "dotenv": "^8.2.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "moment-timezone": "^0.5.31",
     "nconf": "^0.10.0",
     "pg": "^8.2.1",
