@@ -23,7 +23,7 @@
     "async": "^3.2.0",
     "dotenv": "^8.2.0",
     "lodash": "^4.17.15",
-    "moment-timezone": "^0.5.31",
+    "moment-timezone": "^0.5.35",
     "nconf": "^0.10.0",
     "pg": "^8.2.1",
     "printf": "^0.5.3",
